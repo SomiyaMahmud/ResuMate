@@ -36,15 +36,33 @@ const ResumeBuilder = () => {
 
   const loadExistingResume = async () => {
     try {
-      const {data} = await api.get('/api/resumes/get/' + resumeId, {headers:{Authorization: token}})
-      if(data.resume){
-        setResumeData(data.resume)
-        document.title = data.resume.title
+      const { data } = await api.get('/api/resumes/get/' + resumeId, {
+        headers: { Authorization: token },
+      });
+  
+      if (data.resume) {
+        // Normalize: ensure all arrays exist
+        const normalizedResume = {
+          ...data.resume,
+          experience: data.resume.experience || [],
+          education: data.resume.education || [],
+          project: data.resume.project || [],
+          skills: data.resume.skills || [],
+          personal_info: data.resume.personal_info || {},
+          professional_summary: data.resume.professional_summary || "",
+          template: data.resume.template || 'classic',
+          accent_color: data.resume.accent_color || '#3B82F6',
+          public: data.resume.public || false,
+        };
+  
+        setResumeData(normalizedResume);
+        document.title = normalizedResume.title || "Untitled Resume";
       }
     } catch (error) {
       console.log(error.message);
+      toast.error("Failed to load resume");
     }
-  }
+  };
 
   const [activeSectionIndex,setActiveSectionIndex] = useState(0)
   const [removeBackground,setRemoveBackground] = useState(false)

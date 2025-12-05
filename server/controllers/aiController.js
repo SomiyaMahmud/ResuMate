@@ -62,7 +62,6 @@ export const enhanceJobDescription = async (req,res) => {
 // Controller for uploading a resume to the database
 // POST: /api/ai/upload-resume
 
-
 export const uploadResume = async (req,res) => {
     try {
         const {resumeText,title} = req.body

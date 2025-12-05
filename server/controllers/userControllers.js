@@ -44,7 +44,7 @@ export const registerUser = async (req,res)=>{
 }
 
 // controllers for login
-//POST: /api/users/login
+//POST: /api/users/login 
 
 export const loginrUser = async (req,res)=>{
     try {
@@ -83,6 +83,7 @@ export const getUserById = async (req,res)=>{
         if (!user){
             return res.status(404).json({message: 'User Not Found'})
         }
+        
  
         // Return User
         user.password = undefined
