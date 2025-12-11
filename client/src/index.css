@@ -2,15 +2,23 @@
 
 @import "tailwindcss";
 
+/* Tailwind v4 Dark Mode Configuration */
+@variant dark (&:where(.dark, .dark *));
+
 *{
   font-family: "Outfit", sans-serif;
 }
 
 @layer base{
+  /* Smooth transitions for theme switching */
+  body {
+    @apply transition-colors duration-300;
+  }
+  
   button{
     @apply cursor-pointer;
-
   }
+  
   input:not([type="checkbox"]){
     @apply outline-none focus:ring border border-gray-300 focus:ring-blue-500
     focus:border-blue-500 rounded-lg
@@ -20,5 +28,4 @@
     @apply outline-none focus:ring border border-gray-300 focus:ring-blue-500
     focus:border-blue-500 rounded-lg resize-none
   }
-  
 }

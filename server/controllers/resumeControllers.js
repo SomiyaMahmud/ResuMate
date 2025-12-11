@@ -1,6 +1,6 @@
 import imagekit from "../configs/imagekit.js";
 import Resume from "../models/Resume.js";
-import fs from 'fs'
+import fs from 'fs';
 
 // controllers for creating new resumes
 //POST: /api/resumes/create
@@ -96,6 +96,7 @@ export const updateResume = async (req,res)=>{
         const image = req.file;
 
         let resumeDataCopy
+        
         if (typeof resumeData == 'string'){
             resumeDataCopy = await JSON.parse(resumeData)
         } else{
@@ -111,16 +112,16 @@ export const updateResume = async (req,res)=>{
                 folder: 'user-resumes',
                 transformation: {
                     pre: 'w-300,h-300,fo-face,z-0.75' + 
-                    (removeBackground? 'e-bgremove' : "")
+                    (removeBackground? ',e-bgremove' : "")
                 }
               });
             
             resumeDataCopy.personal_info.image = response.url 
         }
 
-        const resume = await Resume.findByIdAndUpdate({userId, _id:resumeId},resumeDataCopy, {new:true})
-        return res.status(200).json({message: "Saved Successfully",resume})
+        const resume = await Resume.findByIdAndUpdate({userId, _id: resumeId},resumeDataCopy,{new:true})
 
+        return res.status(200).json({message: "Saved Successfully", resume})
 
     } catch (error) {
         return res.status(400).json({message: error.message})

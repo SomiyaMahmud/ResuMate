@@ -8,13 +8,14 @@ import Footer from '../components/home/Footer'
 
 const Home = () => {
   return (
-    <div>
-        <Banner/>
-        <Hero/>
-        <Features/>
-        <Testimonial/>
-        <CallToAction/>
-        <Footer/>
+    <div className='bg-white dark:bg-slate-950 transition-colors duration-300'>
+      {/* ↑ ADD THIS WRAPPER CLASS */}
+      <Banner/>
+      <Hero/>
+      <Features/>
+      <Testimonial/>
+      <CallToAction/>
+      <Footer/>
     </div>
   )
 }

@@ -49,9 +49,9 @@ const EducationForm = ({data,onChange}) => {
             ):
                 <div className='space-y-4'>
                     {data.map((education,index)=>(
-                        <div key={index} className='p-4 border border=gray-200 rounded-lg space-y-3'>
+                        <div key={index} className='p-4 border border-gray-200 rounded-lg space-y-3'>
                             <div className='flex justify-between items-start'>
-                                <h4>Education #{index+1}</h4>
+                                <h4>Education # {index+1}</h4>
                                 <button onClick={()=>removeEducation(index)} className='text-red-500 hover:text-red-700 transition-colors'>
                                     <Trash2 className='size-4'/>
                                 </button>
