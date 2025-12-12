@@ -1,6 +1,6 @@
 import React from 'react'
 import {useState,useEffect} from 'react'
-import {PlusIcon,UploadCloudIcon,FilePenLineIcon,TrashIcon,PencilIcon, XIcon, UploadCloud, LoaderCircleIcon } from 'lucide-react';
+import {PlusIcon,UploadCloudIcon,FilePenLineIcon,TrashIcon,PencilIcon, XIcon, UploadCloud, LoaderCircleIcon, FileSearch } from 'lucide-react';
 import { dummyResumeData } from './../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
@@ -128,9 +128,18 @@ const Dashboard = () => {
             <UploadCloudIcon className='size-11 transiton-all duration-300 p-2.5 bg-gradient-to-br from-purple-300 to-purple-500 text-white rounded-full'/>
             <p className='text-sm group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-all duration-300'>Upload Existing</p>
           </button>
+
+          {/* NEW: ATS Checking Button */}
+          <button 
+            onClick={()=>navigate('/app/ats-analyzer')} 
+            className='w-full bg-white dark:bg-slate-900 sm:max-w-42 h-48 flex flex-col items-center justify-center rounded-lg gap-2 text-slate-600 dark:text-slate-300 border border-dashed border-slate-300 dark:border-slate-700 group hover:border-emerald-500 dark:hover:border-emerald-400 hover:shadow-lg transition-all duration-300 cursor-pointer'
+          >
+            <FileSearch className='size-11 transiton-all duration-300 p-2.5 bg-gradient-to-br from-emerald-300 to-emerald-500 text-white rounded-full'/>
+            <p className='text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-all duration-300'>ATS Checking</p>
+          </button>
         </div>
 
-        <hr className='border-slate-300 dark:border-slate-700 my-6 sm:w-[355px]'/>
+        <hr className='border-slate-300 dark:border-slate-700 my-6 sm:w-[535px]'/>
 
         <div className='grid grid-cols-2 sm:flex flex-wrap gap-4'>
           {
