@@ -90,7 +90,7 @@ export const uploadResume = async (req,res) => {
                     description: {type: String},
                 }
             ],
-            educaiton:[
+            education:[
                 {
                     institution: {type: String},
                     degree: {type: String},
@@ -120,7 +120,47 @@ export const uploadResume = async (req,res) => {
     }
 }
 
-// ==================== CLEAN JOB ANALYZER ====================
+// ==================== SMART ATS ANALYZER ====================
+
+// Soft skill evidence keywords mapping
+const SOFT_SKILL_INDICATORS = {
+    'leadership': [
+        'led', 'managed', 'supervised', 'coordinated', 'directed',
+        'mentored', 'guided', 'oversaw', 'team lead', 'project manager',
+        'executive', 'head of', 'organized', 'delegated', 'chief'
+    ],
+    'communication': [
+        'presented', 'documented', 'collaborated', 'liaised', 'conveyed',
+        'articulated', 'facilitated', 'negotiated', 'consulted', 'briefed',
+        'public speaking', 'client meetings', 'stakeholder', 'wrote'
+    ],
+    'teamwork': [
+        'collaborated', 'cooperated', 'team', 'group project', 'cross-functional',
+        'partnered', 'contributed', 'worked with', 'team member', 'jointly'
+    ],
+    'problem solving': [
+        'solved', 'resolved', 'debugged', 'troubleshot', 'identified',
+        'analyzed', 'optimized', 'improved', 'enhanced', 'fixed',
+        'addressed', 'overcome', 'innovated', 'developed'
+    ],
+    'analytical thinking': [
+        'analyzed', 'evaluated', 'assessed', 'investigated', 'examined',
+        'researched', 'data analysis', 'metrics', 'measured', 'interpreted',
+        'statistical', 'quantitative'
+    ],
+    'time management': [
+        'deadline', 'prioritized', 'scheduled', 'planned', 'organized',
+        'multitasked', 'managed time', 'efficient', 'on time'
+    ],
+    'adaptability': [
+        'adapted', 'flexible', 'learned', 'transitioned', 'adjusted',
+        'versatile', 'various', 'diverse', 'changing'
+    ],
+    'attention to detail': [
+        'accurate', 'precise', 'thorough', 'meticulous', 'detailed',
+        'reviewed', 'verified', 'quality', 'error-free', 'carefully'
+    ]
+}
 
 // Helper: Convert resume to text
 const resumeToText = (resume) => {
@@ -143,20 +183,45 @@ const resumeToText = (resume) => {
     
     if (resume.education?.length > 0) {
         resume.education.forEach(edu => {
-            text += `${edu.degree || ''} ${edu.field || ''} `
+            text += `${edu.degree || ''} ${edu.field || ''} ${edu.institution || ''} `
         })
     }
     
     return text
 }
 
+// Function to detect soft skills from resume context
+const detectSoftSkillsFromContext = (resumeText) => {
+    const detectedSkills = []
+    const resumeLower = resumeText.toLowerCase()
+    
+    for (const [skill, indicators] of Object.entries(SOFT_SKILL_INDICATORS)) {
+        const hasEvidence = indicators.some(indicator => 
+            resumeLower.includes(indicator.toLowerCase())
+        )
+        
+        if (hasEvidence) {
+            detectedSkills.push(skill)
+        }
+    }
+    
+    return detectedSkills
+}
+
 // STEP 1: Extract keywords from BOTH resume and job
 const extractStructuredKeywords = async (resumeText, jobDescription) => {
-    const systemPrompt = `You are an ATS expert. Extract and categorize keywords from both resume and job description.`
+    const systemPrompt = `You are an ATS keyword extraction expert.
 
-    const userPrompt = `Extract keywords from this resume and job description.
+CRITICAL RULES:
+1. For HARD SKILLS: Extract ONLY exact technical keywords (programming languages, tools, frameworks, technologies)
+2. For SOFT SKILLS: Extract required soft skills from job description
+3. Extract ONLY keywords that appear word-for-word (case-insensitive is OK)
+4. Multi-word phrases must match EXACTLY
+5. Do NOT infer or assume - be extremely conservative`
 
-RESUME:
+    const userPrompt = `Extract keywords from resume and job description.
+
+RESUME TEXT:
 ${resumeText}
 
 JOB DESCRIPTION:
@@ -165,18 +230,18 @@ ${jobDescription}
 Return JSON format:
 {
     "resumeKeywords": {
-        "hardSkills": ["React", "Python"],
-        "softSkills": ["Leadership", "Communication"],
-        "allKeywords": ["React", "Python", "Leadership"]
+        "hardSkills": ["Python", "SQL"],
+        "softSkills": [],
+        "allKeywords": ["Python", "SQL", "React"]
     },
     "jobKeywords": {
-        "hardSkills": ["React", "Docker"],
-        "softSkills": ["Teamwork"],
-        "allKeywords": ["React", "Docker", "Teamwork"]
+        "hardSkills": ["Python", "Java", "SQL"],
+        "softSkills": ["leadership", "communication", "problem solving"],
+        "allKeywords": ["Python", "Java", "SQL", "leadership", "communication"]
     },
     "experienceYears": {
-        "required": 5,
-        "found": 3
+        "required": 3,
+        "found": 2
     },
     "education": {
         "required": "Bachelor",
@@ -191,10 +256,25 @@ Return JSON format:
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            response_format: { type: 'json_object' }
+            response_format: { type: 'json_object' },
+            temperature: 0
         })
 
-        return JSON.parse(response.choices[0].message.content)
+        const result = JSON.parse(response.choices[0].message.content)
+        
+        // SMART SOFT SKILL DETECTION: Infer from resume context
+        const detectedSoftSkills = detectSoftSkillsFromContext(resumeText)
+        result.resumeKeywords.softSkills = detectedSoftSkills
+        
+        // Update allKeywords with detected soft skills
+        result.resumeKeywords.allKeywords = [
+            ...result.resumeKeywords.hardSkills,
+            ...detectedSoftSkills
+        ]
+        
+        console.log('🎯 Detected soft skills from context:', detectedSoftSkills)
+        
+        return result
     } catch (error) {
         console.error('Keyword extraction error:', error)
         return null
@@ -203,37 +283,61 @@ Return JSON format:
 
 // STEP 2: Match keywords
 const matchKeywords = (resumeKeywords, jobKeywords) => {
-    const resumeAll = resumeKeywords.allKeywords.map(k => k.toLowerCase())
-    const jobAll = jobKeywords.allKeywords.map(k => k.toLowerCase())
+    const resumeAllLower = resumeKeywords.allKeywords.map(k => k.toLowerCase().trim())
+    const jobAllLower = jobKeywords.allKeywords.map(k => k.toLowerCase().trim())
+    
+    console.log('📋 Resume keywords:', resumeAllLower)
+    console.log('📋 Job keywords:', jobAllLower)
+    
+    // EXACT MATCH for all keywords
+    const matchedLower = jobAllLower.filter(jobKw => 
+        resumeAllLower.includes(jobKw)
+    )
+    
+    const missingLower = jobAllLower.filter(jobKw => 
+        !resumeAllLower.includes(jobKw)
+    )
     
     // Hard skills matching
-    const hardSkillsMatched = jobKeywords.hardSkills.filter(skill =>
-        resumeKeywords.hardSkills.some(rSkill => 
-            rSkill.toLowerCase().includes(skill.toLowerCase()) ||
-            skill.toLowerCase().includes(rSkill.toLowerCase())
-        )
+    const resumeHardLower = resumeKeywords.hardSkills.map(s => s.toLowerCase().trim())
+    const jobHardLower = jobKeywords.hardSkills.map(s => s.toLowerCase().trim())
+    
+    const hardSkillsMatchedLower = jobHardLower.filter(skill =>
+        resumeHardLower.includes(skill)
     )
     
     // Soft skills matching
-    const softSkillsMatched = jobKeywords.softSkills.filter(skill =>
-        resumeKeywords.softSkills.some(rSkill => 
-            rSkill.toLowerCase().includes(skill.toLowerCase()) ||
-            skill.toLowerCase().includes(rSkill.toLowerCase())
-        )
+    const resumeSoftLower = resumeKeywords.softSkills.map(s => s.toLowerCase().trim())
+    const jobSoftLower = jobKeywords.softSkills.map(s => s.toLowerCase().trim())
+    
+    const softSkillsMatchedLower = jobSoftLower.filter(skill =>
+        resumeSoftLower.includes(skill)
     )
     
-    // All keywords matching
-    const matched = jobAll.filter(jobKw =>
-        resumeAll.some(resumeKw =>
-            resumeKw.includes(jobKw) || jobKw.includes(resumeKw)
-        )
-    )
+    // Convert back to original casing for display
+    const matched = [...new Set(matchedLower.map(kw => {
+        const original = jobKeywords.allKeywords.find(jk => jk.toLowerCase().trim() === kw)
+        return original || kw
+    }))]
     
-    const missing = jobAll.filter(jobKw =>
-        !resumeAll.some(resumeKw =>
-            resumeKw.includes(jobKw) || jobKw.includes(resumeKw)
-        )
-    )
+    const missing = [...new Set(missingLower.map(kw => {
+        const original = jobKeywords.allKeywords.find(jk => jk.toLowerCase().trim() === kw)
+        return original || kw
+    }))]
+    
+    const hardSkillsMatched = hardSkillsMatchedLower.map(skill => {
+        const original = jobKeywords.hardSkills.find(s => s.toLowerCase().trim() === skill)
+        return original || skill
+    })
+    
+    const softSkillsMatched = softSkillsMatchedLower.map(skill => {
+        const original = jobKeywords.softSkills.find(s => s.toLowerCase().trim() === skill)
+        return original || skill
+    })
+    
+    console.log('✅ Hard skills matched:', hardSkillsMatched)
+    console.log('💡 Soft skills matched:', softSkillsMatched)
+    console.log('❌ Missing keywords:', missing)
     
     return {
         hardSkillsMatched,
@@ -249,53 +353,262 @@ const matchKeywords = (resumeKeywords, jobKeywords) => {
     }
 }
 
-// STEP 3: Calculate section scores
-const calculateSectionScores = (resume, jobKeywords) => {
+// ADVANCED EDUCATION MATCHING SYSTEM
+const EDUCATION_DATABASE = {
+    // Degree levels with synonyms
+    degreeTypes: {
+        'phd': ['phd', 'ph.d', 'ph d', 'doctor of philosophy', 'doctorate', 'doctoral'],
+        'masters': ['masters', 'master', "master's", 'msc', 'm.sc', 'ms', 'm.s', 'mba', 'm.b.a', 'ma', 'm.a', 'meng', 'm.eng'],
+        'bachelors': ['bachelors', 'bachelor', "bachelor's", 'bsc', 'b.sc', 'bs', 'b.s', 'ba', 'b.a', 'beng', 'b.eng', 'btech', 'b.tech'],
+        'associate': ['associate', 'associates', 'as', 'a.s', 'aa', 'a.a'],
+        'diploma': ['diploma', 'certificate']
+    },
+    
+    // Field synonyms - COMPREHENSIVE MATCHING
+    fieldSynonyms: {
+        // Computer Science family
+        'computer_science': [
+            'computer science', 'cs', 'cse', 'computer engineering',
+            'computing', 'computational science', 'informatics',
+            'computer systems', 'computing science'
+        ],
+        'software_engineering': [
+            'software engineering', 'se', 'swe', 'software development',
+            'software systems', 'computer software engineering'
+        ],
+        'information_technology': [
+            'information technology', 'it', 'information systems',
+            'management information systems', 'mis', 'information science',
+            'computer information systems', 'cis'
+        ],
+        'data_science': [
+            'data science', 'data analytics', 'data engineering',
+            'big data', 'data analysis', 'analytics'
+        ],
+        'artificial_intelligence': [
+            'artificial intelligence', 'ai', 'machine learning', 'ml',
+            'deep learning', 'neural networks', 'cognitive science'
+        ],
+        'cybersecurity': [
+            'cybersecurity', 'cyber security', 'information security',
+            'network security', 'computer security', 'infosec'
+        ],
+        
+        // Engineering fields
+        'electrical_engineering': [
+            'electrical engineering', 'ee', 'ece', 'electronics',
+            'electronics and communication', 'electrical and electronics'
+        ],
+        'mechanical_engineering': [
+            'mechanical engineering', 'me', 'mechanical', 'manufacturing engineering'
+        ],
+        
+        // Business fields
+        'business': [
+            'business', 'business administration', 'management',
+            'commerce', 'business management', 'bba', 'mba'
+        ],
+        
+        // Science fields
+        'mathematics': [
+            'mathematics', 'math', 'maths', 'applied mathematics',
+            'computational mathematics', 'statistics'
+        ],
+        'physics': ['physics', 'applied physics', 'physical science'],
+        'chemistry': ['chemistry', 'chemical science']
+    },
+    
+    // Related fields mapping (for "related field" requirements)
+    relatedFields: {
+        'computer_science': [
+            'computer_science', 'software_engineering', 'information_technology',
+            'data_science', 'artificial_intelligence', 'cybersecurity',
+            'electrical_engineering', 'mathematics'
+        ],
+        'software_engineering': [
+            'software_engineering', 'computer_science', 'information_technology',
+            'computer_engineering'
+        ],
+        'data_science': [
+            'data_science', 'computer_science', 'statistics', 'mathematics',
+            'artificial_intelligence'
+        ],
+        'business': [
+            'business', 'management', 'economics', 'finance', 'marketing'
+        ]
+    }
+}
+
+// Normalize education text to standard field
+const normalizeEducationField = (text) => {
+    const lowerText = text.toLowerCase().trim()
+    
+    for (const [standardField, synonyms] of Object.entries(EDUCATION_DATABASE.fieldSynonyms)) {
+        for (const synonym of synonyms) {
+            if (lowerText.includes(synonym)) {
+                return standardField
+            }
+        }
+    }
+    
+    return null
+}
+
+// Normalize degree level
+const normalizeDegreeLevel = (text) => {
+    const lowerText = text.toLowerCase().trim()
+    
+    for (const [level, synonyms] of Object.entries(EDUCATION_DATABASE.degreeTypes)) {
+        for (const synonym of synonyms) {
+            if (lowerText.includes(synonym)) {
+                return level
+            }
+        }
+    }
+    
+    return null
+}
+
+// Check if education matches job requirements
+const matchEducation = (resume, jobDescription) => {
+    const jobDescLower = jobDescription.toLowerCase()
+    
+    // 1. Extract required degree level
+    let requiredDegreeLevel = null
+    for (const [level, synonyms] of Object.entries(EDUCATION_DATABASE.degreeTypes)) {
+        for (const synonym of synonyms) {
+            if (jobDescLower.includes(synonym)) {
+                requiredDegreeLevel = level
+                break
+            }
+        }
+        if (requiredDegreeLevel) break
+    }
+    
+    // 2. Extract required field
+    let requiredField = normalizeEducationField(jobDescription)
+    
+    // 3. Check for "any discipline"
+    const acceptsAnyField = /any (discipline|field|major|degree)/i.test(jobDescription)
+    
+    // 4. Check candidate's education
+    if (!resume.education || resume.education.length === 0) {
+        return {
+            hasEducation: false,
+            degreeMatch: false,
+            fieldMatch: false,
+            score: 0
+        }
+    }
+    
+    let bestMatch = {
+        hasEducation: true,
+        degreeMatch: false,
+        fieldMatch: false,
+        score: 40  // Base score for having any education
+    }
+    
+    for (const edu of resume.education) {
+        const candidateDegree = normalizeDegreeLevel(edu.degree || '')
+        const candidateField = normalizeEducationField((edu.field || '') + ' ' + (edu.degree || ''))
+        
+        // Degree level hierarchy: phd > masters > bachelors > associate > diploma
+        const degreeHierarchy = { 'phd': 5, 'masters': 4, 'bachelors': 3, 'associate': 2, 'diploma': 1 }
+        
+        // Check degree match
+        let degreeScore = 0
+        if (candidateDegree && requiredDegreeLevel) {
+            if (candidateDegree === requiredDegreeLevel) {
+                degreeScore = 40  // Exact match
+                bestMatch.degreeMatch = true
+            } else if (degreeHierarchy[candidateDegree] > degreeHierarchy[requiredDegreeLevel]) {
+                degreeScore = 40  // Higher degree is good
+                bestMatch.degreeMatch = true
+            } else {
+                degreeScore = 20  // Lower degree
+            }
+        } else if (candidateDegree) {
+            // Has a degree but job doesn't specify
+            degreeScore = 30
+        }
+        
+        // Check field match
+        let fieldScore = 0
+        if (acceptsAnyField) {
+            // Job accepts any field
+            fieldScore = 30
+            bestMatch.fieldMatch = true
+        } else if (candidateField && requiredField) {
+            if (candidateField === requiredField) {
+                // Exact field match
+                fieldScore = 30
+                bestMatch.fieldMatch = true
+            } else if (EDUCATION_DATABASE.relatedFields[requiredField]?.includes(candidateField)) {
+                // Related field match
+                fieldScore = 25
+                bestMatch.fieldMatch = true
+            } else {
+                // Unrelated field
+                fieldScore = 10
+            }
+        } else if (candidateField) {
+            // Has a field but job doesn't specify
+            fieldScore = 20
+        }
+        
+        const totalScore = Math.min(degreeScore + fieldScore, 100)
+        
+        if (totalScore > bestMatch.score) {
+            bestMatch.score = totalScore
+        }
+    }
+    
+    console.log('Education Match:', bestMatch)
+    
+    return bestMatch
+}
+
+// STEP 3: Calculate section scores (ACCURATE MATCHING)
+const calculateSectionScores = (resume, jobKeywords, matchResult, experienceYears, jobDescription) => {
     const scores = {}
     
-    // Summary score
-    if (resume.professional_summary) {
-        const summaryKeywords = jobKeywords.allKeywords.filter(kw =>
-            resume.professional_summary.toLowerCase().includes(kw.toLowerCase())
-        )
-        scores.summary = jobKeywords.allKeywords.length > 0
-            ? Math.round((summaryKeywords.length / jobKeywords.allKeywords.length) * 100)
-            : 0
-    } else {
-        scores.summary = 0
-    }
+    // 1. SKILLS SCORE - Based on hard skills match
+    scores.skills = matchResult.hardSkillsScore
     
-    // Skills score
-    const resumeSkills = (resume.skills || []).map(s => s.toLowerCase())
-    const skillsMatched = jobKeywords.hardSkills.filter(skill =>
-        resumeSkills.some(rs => rs.includes(skill.toLowerCase()))
-    )
-    scores.skills = jobKeywords.hardSkills.length > 0
-        ? Math.round((skillsMatched.length / jobKeywords.hardSkills.length) * 100)
-        : 0
+    // 2. EXPERIENCE SCORE - Years + keyword presence in descriptions
+    let experienceScore = 0
     
-    // Experience score
     if (resume.experience?.length > 0) {
+        // Years of experience component (50%)
+        const yearsScore = experienceYears.required > 0
+            ? Math.min((experienceYears.found / experienceYears.required) * 50, 50)
+            : 25
+        
+        // Keyword presence in experience descriptions (50%)
         const expText = resume.experience.map(e => e.description || '').join(' ').toLowerCase()
-        const expKeywords = jobKeywords.allKeywords.filter(kw =>
-            expText.includes(kw.toLowerCase())
-        )
-        scores.experience = jobKeywords.allKeywords.length > 0
-            ? Math.round((expKeywords.length / jobKeywords.allKeywords.length) * 100)
-            : 0
+        const jobKeywordsLower = jobKeywords.allKeywords.map(k => k.toLowerCase().trim())
+        const expMatches = jobKeywordsLower.filter(kw => expText.includes(kw))
+        const keywordScore = jobKeywordsLower.length > 0
+            ? (expMatches.length / jobKeywordsLower.length) * 50
+            : 25
+        
+        experienceScore = Math.round(yearsScore + keywordScore)
     } else {
-        scores.experience = 0
+        experienceScore = 0
     }
     
-    // Education score
-    scores.education = resume.education?.length > 0 ? 80 : 40
+    scores.experience = Math.min(experienceScore, 100)
+    
+    // 3. EDUCATION SCORE - ADVANCED SEMANTIC MATCHING (case-insensitive)
+    const educationMatch = matchEducation(resume, jobDescription)
+    scores.education = educationMatch.score
+    
+    console.log('Section Scores (Skills + Experience + Education):', scores)
     
     return scores
 }
 
 // MAIN CONTROLLER: Analyze job match
-// POST: /api/ai/analyze-job-match
-
 export const analyzeJobMatch = async (req, res) => {
     try {
         const { resumeId, jobDescription, jobTitle, company } = req.body
@@ -324,29 +637,48 @@ export const analyzeJobMatch = async (req, res) => {
         // STEP 2: Match keywords
         const matchResult = matchKeywords(extracted.resumeKeywords, extracted.jobKeywords)
 
-        // STEP 3: Calculate ATS score
-        const atsScore = Math.round(
-            (matchResult.hardSkillsScore * 0.5) +
-            (matchResult.softSkillsScore * 0.2) +
-            (extracted.experienceYears.found >= extracted.experienceYears.required ? 20 : 10) +
-            (extracted.education.found ? 10 : 5)
+        // STEP 3: Calculate section scores
+        const sectionScores = calculateSectionScores(
+            resume, 
+            extracted.jobKeywords, 
+            matchResult,
+            extracted.experienceYears,
+            jobDescription  // Pass full job description for education matching
         )
 
-        // STEP 4: Calculate section scores
-        const sectionScores = calculateSectionScores(resume, extracted.jobKeywords)
+        // STEP 4: Calculate OVERALL ATS SCORE - Average of 3 Sections
+        // ATS Score = (Skills + Experience + Education) / 3
+        const atsScore = Math.round(
+            (sectionScores.skills + sectionScores.experience + sectionScores.education) / 3
+        )
+
+        console.log('🎯 ATS Score Breakdown (3 sections):')
+        console.log(`   Skills: ${sectionScores.skills}`)
+        console.log(`   Experience: ${sectionScores.experience}`)
+        console.log(`   Education: ${sectionScores.education}`)
+        console.log(`   Average: (${sectionScores.skills} + ${sectionScores.experience} + ${sectionScores.education}) / 3 = ${atsScore}/100`)
 
         // STEP 5: Generate AI suggestions
-        const systemPrompt = `You are an ATS resume optimizer.`
+        const systemPrompt = `You are an ATS resume optimizer. Provide actionable, specific suggestions based on the analysis.`
         const userPrompt = `
 ATS Score: ${atsScore}/100
+Section Scores:
+- Skills: ${sectionScores.skills}/100
+- Experience: ${sectionScores.experience}/100
+- Education: ${sectionScores.education}/100
+
+Matched Keywords: ${matchResult.matched.join(', ')}
 Missing Keywords: ${matchResult.missing.join(', ')}
+
+Hard Skills Score: ${matchResult.hardSkillsScore}%
+Soft Skills Score: ${matchResult.softSkillsScore}%
 
 Provide suggestions in JSON:
 {
-    "improvedSummary": "Rewrite with missing keywords",
-    "skillsToAdd": ["skill1", "skill2"],
+    "improvedSummary": "Write a better professional summary (2-3 sentences) that naturally includes 3-5 missing keywords",
+    "skillsToAdd": ["skill1", "skill2", "skill3"],
     "experienceImprovements": ["tip1", "tip2"],
-    "overallTips": ["tip1", "tip2"]
+    "overallTips": ["tip1", "tip2", "tip3"]
 }`
 
         const aiResponse = await ai.chat.completions.create({
@@ -380,13 +712,15 @@ Provide suggestions in JSON:
             suggestions
         })
 
-        console.log('✅ Analysis complete!')
+        console.log('Analysis complete!')
         
         // STEP 7: Return clean response
         return res.status(200).json({
             analysisId: analysis._id,
             atsScore,
-            matchRate: Math.round((matchResult.matched.length / extracted.jobKeywords.allKeywords.length) * 100),
+            matchRate: extracted.jobKeywords.allKeywords.length > 0 
+                ? Math.round((matchResult.matched.length / extracted.jobKeywords.allKeywords.length) * 100)
+                : 0,
             matchedKeywords: matchResult.matched,
             missingKeywords: matchResult.missing,
             hardSkillsScore: matchResult.hardSkillsScore,
@@ -403,7 +737,7 @@ Provide suggestions in JSON:
         })
 
     } catch (error) {
-        console.error('❌ Analysis error:', error)
+        console.error('Analysis error:', error)
         return res.status(400).json({ message: error.message })
     }
 }
