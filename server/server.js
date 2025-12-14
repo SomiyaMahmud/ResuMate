@@ -5,6 +5,8 @@ import connectDb from './configs/db.js'
 import userRouter from './routes/userRoutes.js'
 import resumeRouter from './routes/resumeRoutes.js'
 import aiRouter from './routes/aiRoutes.js'
+import jobRouter from './routes/jobRoutes.js'
+import discussionRouter from './routes/discussionRoutes.js'
 
 const app =express()
 const PORT = process.env.PORT || 3000
@@ -19,6 +21,8 @@ app.get('/',(req,res)=>res.send("Server is Live...."))
 app.use('/api/users',userRouter)
 app.use('/api/resumes',resumeRouter)
 app.use('/api/ai',aiRouter)
+app.use('/api/jobs', jobRouter)
+app.use('/api/discussions', discussionRouter)
 
 
 app.listen(PORT,()=>{

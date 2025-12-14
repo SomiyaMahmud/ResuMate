@@ -7,11 +7,25 @@ import ResumeBuilder from './pages/ResumeBuilder'
 import Preview from './pages/Preview'
 import Login from './pages/Login'
 import ATS from './pages/ATS'
+import Jobs from './pages/Jobs'
+import JobDetails from './pages/JobDetails'
+import Discussions from './pages/Discussions'
+import DiscussionDetails from './pages/DiscussionDetails'
+import SavedJobs from './pages/SavedJobs'
+import SavedDiscussions from './pages/SavedDiscussions'
+import CreateJob from './pages/CreateJob'
 import { useDispatch, useSelector } from 'react-redux'
 import api from './configs/api.js'
 import { login, setLoading } from './app/features/authSlice'
 import { setTheme } from './app/features/themeSlice'
 import { Toaster } from 'react-hot-toast'
+
+
+
+
+
+
+
 
 const App = () => {
   const dispatch = useDispatch()
@@ -59,7 +73,19 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path='builder/:resumeId' element={<ResumeBuilder />} />
           <Route path='ats-analyzer' element={<ATS />} />
+          
+          {/* Jobs */}
+          <Route path='jobs' element={<Jobs />} />
+          <Route path='jobs/create' element={<CreateJob />} />  {/* NEW */}
+          <Route path='jobs/saved' element={<SavedJobs />} />   {/* NEW */}
+          <Route path='jobs/:jobId' element={<JobDetails />} />
+          
+          {/* Discussions */}
+          <Route path='discussions' element={<Discussions />} />
+          <Route path='discussions/saved' element={<SavedDiscussions />} />  {/* NEW */}
+          <Route path='discussions/:discussionId' element={<DiscussionDetails />} />
         </Route>
+
         
         <Route path='view/:resumeId' element={<Preview />} />
         {/* <Route path='login' element={<Login />} /> */}
