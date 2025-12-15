@@ -7,6 +7,7 @@ import resumeRouter from './routes/resumeRoutes.js'
 import aiRouter from './routes/aiRoutes.js'
 import jobRouter from './routes/jobRoutes.js'
 import discussionRouter from './routes/discussionRoutes.js'
+import notificationRouter from './routes/notificationRoutes.js'
 
 const app =express()
 const PORT = process.env.PORT || 3000
@@ -23,6 +24,7 @@ app.use('/api/resumes',resumeRouter)
 app.use('/api/ai',aiRouter)
 app.use('/api/jobs', jobRouter)
 app.use('/api/discussions', discussionRouter)
+app.use('/api/notifications', notificationRouter)
 
 
 app.listen(PORT,()=>{

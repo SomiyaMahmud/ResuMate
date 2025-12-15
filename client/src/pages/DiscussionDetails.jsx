@@ -4,8 +4,8 @@ import { useSelector } from 'react-redux'
 import api from '../configs/api.js'
 import toast from 'react-hot-toast'
 import {
-    ArrowLeft, ThumbsUp, Bookmark, BookmarkCheck, Eye, Clock,
-    MessageCircle, Edit2, Trash2, Send, X, Check
+    ArrowLeft, Bookmark, BookmarkCheck, Eye, Clock,
+    MessageCircle, Edit2, Trash2, Send, X, Check, Reply
 } from 'lucide-react'
 
 const DiscussionDetails = () => {
@@ -21,6 +21,12 @@ const DiscussionDetails = () => {
     const [newComment, setNewComment] = useState('')
     const [editingCommentId, setEditingCommentId] = useState(null)
     const [editCommentText, setEditCommentText] = useState('')
+    
+    // Replies - NEW
+    const [replyingToCommentId, setReplyingToCommentId] = useState(null)
+    const [newReply, setNewReply] = useState('')
+    const [editingReplyId, setEditingReplyId] = useState(null)
+    const [editReplyText, setEditReplyText] = useState('')
     
     // Edit discussion
     const [isEditingDiscussion, setIsEditingDiscussion] = useState(false)
@@ -47,7 +53,6 @@ const DiscussionDetails = () => {
         }
         setLoading(false)
     }
-
 
     const handleSave = async () => {
         if (!token) {
@@ -117,6 +122,63 @@ const DiscussionDetails = () => {
             toast.success('Comment deleted!')
         } catch (error) {
             toast.error('Failed to delete comment')
+        }
+    }
+
+    // NEW: Reply handlers
+    const handleAddReply = async (commentId, e) => {
+        e.preventDefault()
+        if (!token) {
+            toast.error('Please login to reply')
+            return
+        }
+
+        if (!newReply.trim()) return
+
+        try {
+            const { data } = await api.post(
+                `/api/discussions/${discussionId}/comment/${commentId}/reply`,
+                { content: newReply },
+                { headers: { Authorization: token } }
+            )
+            setDiscussion({ ...discussion, comments: data.comments })
+            setNewReply('')
+            setReplyingToCommentId(null)
+            toast.success('Reply added!')
+        } catch (error) {
+            toast.error('Failed to add reply')
+        }
+    }
+
+    const handleEditReply = async (commentId, replyId) => {
+        if (!editReplyText.trim()) return
+
+        try {
+            const { data } = await api.put(
+                `/api/discussions/${discussionId}/comment/${commentId}/reply/${replyId}`,
+                { content: editReplyText },
+                { headers: { Authorization: token } }
+            )
+            setDiscussion({ ...discussion, comments: data.comments })
+            setEditingReplyId(null)
+            toast.success('Reply updated!')
+        } catch (error) {
+            toast.error('Failed to update reply')
+        }
+    }
+
+    const handleDeleteReply = async (commentId, replyId) => {
+        if (!window.confirm('Delete this reply?')) return
+
+        try {
+            const { data } = await api.delete(
+                `/api/discussions/${discussionId}/comment/${commentId}/reply/${replyId}`,
+                { headers: { Authorization: token } }
+            )
+            setDiscussion({ ...discussion, comments: data.comments })
+            toast.success('Reply deleted!')
+        } catch (error) {
+            toast.error('Failed to delete reply')
         }
     }
 
@@ -255,7 +317,6 @@ const DiscussionDetails = () => {
 
                                 {/* Actions */}
                                 <div className='flex items-center gap-6 pt-6 border-t border-slate-200 dark:border-slate-700'>
-        
                                     <span className='flex items-center gap-2 text-slate-600 dark:text-slate-400'>
                                         <MessageCircle className='size-5' />
                                         {discussion.comments?.length || 0} comments
@@ -350,73 +411,196 @@ const DiscussionDetails = () => {
                     {/* Comments List */}
                     <div className='space-y-6'>
                         {discussion.comments?.map(comment => (
-                            <div key={comment._id} className='flex gap-4'>
-                                <div className='size-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center font-semibold text-purple-600 dark:text-purple-400 flex-shrink-0'>
-                                    {comment.user?.name?.charAt(0).toUpperCase()}
-                                </div>
-                                <div className='flex-1'>
-                                    <div className='bg-slate-50 dark:bg-slate-800 rounded-lg p-4'>
-                                        <div className='flex items-center justify-between mb-2'>
-                                            <div className='flex items-center gap-2 text-sm'>
-                                                <span className='font-semibold text-slate-900 dark:text-white'>
-                                                    {comment.user?.name}
-                                                </span>
-                                                <span className='text-slate-500 dark:text-slate-400'>
-                                                    {new Date(comment.createdAt).toLocaleDateString()}
-                                                </span>
-                                                {comment.isEdited && (
-                                                    <span className='text-slate-500 dark:text-slate-400 italic'>
-                                                        (edited)
+                            <div key={comment._id} className='space-y-4'>
+                                {/* Comment */}
+                                <div className='flex gap-4'>
+                                    <div className='size-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center font-semibold text-purple-600 dark:text-purple-400 flex-shrink-0'>
+                                        {comment.user?.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className='flex-1'>
+                                        <div className='bg-slate-50 dark:bg-slate-800 rounded-lg p-4'>
+                                            <div className='flex items-center justify-between mb-2'>
+                                                <div className='flex items-center gap-2 text-sm'>
+                                                    <span className='font-semibold text-slate-900 dark:text-white'>
+                                                        {comment.user?.name}
                                                     </span>
+                                                    <span className='text-slate-500 dark:text-slate-400'>
+                                                        {new Date(comment.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                    {comment.isEdited && (
+                                                        <span className='text-slate-500 dark:text-slate-400 italic'>
+                                                            (edited)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {comment.user?._id === user?._id && (
+                                                    <div className='flex gap-1'>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingCommentId(comment._id)
+                                                                setEditCommentText(comment.content)
+                                                            }}
+                                                            className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded'
+                                                        >
+                                                            <Edit2 className='size-4 text-slate-600 dark:text-slate-400' />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteComment(comment._id)}
+                                                            className='p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded'
+                                                        >
+                                                            <Trash2 className='size-4 text-red-600 dark:text-red-400' />
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
-                                            {comment.user?._id === user?._id && (
-                                                <div className='flex gap-1'>
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingCommentId(comment._id)
-                                                            setEditCommentText(comment.content)
-                                                        }}
-                                                        className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded'
-                                                    >
-                                                        <Edit2 className='size-4 text-slate-600 dark:text-slate-400' />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteComment(comment._id)}
-                                                        className='p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded'
-                                                    >
-                                                        <Trash2 className='size-4 text-red-600 dark:text-red-400' />
-                                                    </button>
+                                            {editingCommentId === comment._id ? (
+                                                <div className='space-y-2'>
+                                                    <textarea
+                                                        value={editCommentText}
+                                                        onChange={(e) => setEditCommentText(e.target.value)}
+                                                        rows={3}
+                                                        className='w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 resize-none'
+                                                    />
+                                                    <div className='flex gap-2'>
+                                                        <button
+                                                            onClick={() => setEditingCommentId(null)}
+                                                            className='px-3 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded text-sm'
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleEditComment(comment._id)}
+                                                            className='px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm'
+                                                        >
+                                                            Save
+                                                        </button>
+                                                    </div>
                                                 </div>
+                                            ) : (
+                                                <p className='text-slate-700 dark:text-slate-300 whitespace-pre-wrap'>
+                                                    {comment.content}
+                                                </p>
                                             )}
                                         </div>
-                                        {editingCommentId === comment._id ? (
-                                            <div className='space-y-2'>
+
+                                        {/* Reply Button */}
+                                        <button
+                                            onClick={() => setReplyingToCommentId(comment._id)}
+                                            className='mt-2 flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                                        >
+                                            <Reply className='size-4' />
+                                            Reply
+                                        </button>
+
+                                        {/* Reply Form */}
+                                        {replyingToCommentId === comment._id && (
+                                            <form onSubmit={(e) => handleAddReply(comment._id, e)} className='mt-3 ml-8'>
                                                 <textarea
-                                                    value={editCommentText}
-                                                    onChange={(e) => setEditCommentText(e.target.value)}
+                                                    value={newReply}
+                                                    onChange={(e) => setNewReply(e.target.value)}
+                                                    placeholder='Write a reply...'
                                                     rows={3}
-                                                    className='w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 resize-none'
+                                                    className='w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 resize-none mb-2'
                                                 />
                                                 <div className='flex gap-2'>
                                                     <button
-                                                        onClick={() => setEditingCommentId(null)}
+                                                        type='button'
+                                                        onClick={() => {
+                                                            setReplyingToCommentId(null)
+                                                            setNewReply('')
+                                                        }}
                                                         className='px-3 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded text-sm'
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button
-                                                        onClick={() => handleEditComment(comment._id)}
-                                                        className='px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm'
+                                                        type='submit'
+                                                        disabled={!newReply.trim()}
+                                                        className='px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded text-sm'
                                                     >
-                                                        Save
+                                                        Post Reply
                                                     </button>
                                                 </div>
+                                            </form>
+                                        )}
+
+                                        {/* Replies List */}
+                                        {comment.replies?.length > 0 && (
+                                            <div className='mt-4 ml-8 space-y-3'>
+                                                {comment.replies.map(reply => (
+                                                    <div key={reply._id} className='flex gap-3'>
+                                                        <div className='size-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0'>
+                                                            {reply.user?.name?.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className='flex-1'>
+                                                            <div className='bg-slate-100 dark:bg-slate-800 rounded-lg p-3'>
+                                                                <div className='flex items-center justify-between mb-1'>
+                                                                    <div className='flex items-center gap-2 text-xs'>
+                                                                        <span className='font-semibold text-slate-900 dark:text-white'>
+                                                                            {reply.user?.name}
+                                                                        </span>
+                                                                        <span className='text-slate-500 dark:text-slate-400'>
+                                                                            {new Date(reply.createdAt).toLocaleDateString()}
+                                                                        </span>
+                                                                        {reply.isEdited && (
+                                                                            <span className='text-slate-500 dark:text-slate-400 italic'>
+                                                                                (edited)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {reply.user?._id === user?._id && (
+                                                                        <div className='flex gap-1'>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setEditingReplyId(reply._id)
+                                                                                    setEditReplyText(reply.content)
+                                                                                }}
+                                                                                className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded'
+                                                                            >
+                                                                                <Edit2 className='size-3 text-slate-600 dark:text-slate-400' />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDeleteReply(comment._id, reply._id)}
+                                                                                className='p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded'
+                                                                            >
+                                                                                <Trash2 className='size-3 text-red-600 dark:text-red-400' />
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {editingReplyId === reply._id ? (
+                                                                    <div className='space-y-2'>
+                                                                        <textarea
+                                                                            value={editReplyText}
+                                                                            onChange={(e) => setEditReplyText(e.target.value)}
+                                                                            rows={2}
+                                                                            className='w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm resize-none'
+                                                                        />
+                                                                        <div className='flex gap-2'>
+                                                                            <button
+                                                                                onClick={() => setEditingReplyId(null)}
+                                                                                className='px-2 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded text-xs'
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleEditReply(comment._id, reply._id)}
+                                                                                className='px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs'
+                                                                            >
+                                                                                Save
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className='text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap'>
+                                                                        {reply.content}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ) : (
-                                            <p className='text-slate-700 dark:text-slate-300 whitespace-pre-wrap'>
-                                                {comment.content}
-                                            </p>
                                         )}
                                     </div>
                                 </div>

@@ -4,8 +4,8 @@ import { useSelector } from 'react-redux'
 import api from '../configs/api.js'
 import toast from 'react-hot-toast'
 import {
-    MessageSquare, Search, Filter, Plus, Eye, ThumbsUp,
-    MessageCircle, Bookmark, BookmarkCheck, Clock, X, Pin
+    MessageSquare, Search, Plus, Eye, MessageCircle, 
+    Bookmark, BookmarkCheck, Clock, X, Pin
 } from 'lucide-react'
 
 const Discussions = () => {
@@ -15,21 +15,16 @@ const Discussions = () => {
     const [discussions, setDiscussions] = useState([])
     const [loading, setLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
-    const [showFilters, setShowFilters] = useState(false)
 
     // Create form
     const [newDiscussion, setNewDiscussion] = useState({
-        title: '',
         content: '',
         category: 'General Discussion',
         tags: ''
     })
 
-    // Filters
-    const [filters, setFilters] = useState({
-        search: '',
-        category: ''
-    })
+    // Search only
+    const [searchQuery, setSearchQuery] = useState('')
 
     const categories = [
         'Resume Help',
@@ -45,14 +40,13 @@ const Discussions = () => {
 
     useEffect(() => {
         loadDiscussions()
-    }, [filters])
+    }, [searchQuery])
 
     const loadDiscussions = async () => {
         setLoading(true)
         try {
             const params = new URLSearchParams()
-            if (filters.search) params.append('search', filters.search)
-            if (filters.category) params.append('category', filters.category)
+            if (searchQuery) params.append('search', searchQuery)
 
             const { data } = await api.get(`/api/discussions?${params.toString()}`)
             setDiscussions(data.discussions)
@@ -70,14 +64,20 @@ const Discussions = () => {
             return
         }
 
-        if (!newDiscussion.title.trim() || !newDiscussion.content.trim()) {
-            toast.error('Title and content are required')
+        if (!newDiscussion.content.trim()) {
+            toast.error('Content is required')
             return
         }
 
         try {
+            // Auto-generate title from first line of content
+            const firstLine = newDiscussion.content.split('\n')[0].trim()
+            const autoTitle = firstLine.substring(0, 100) + (firstLine.length > 100 ? '...' : '')
+
             const { data } = await api.post('/api/discussions/create', {
-                ...newDiscussion,
+                title: autoTitle,
+                content: newDiscussion.content,
+                category: newDiscussion.category,
                 tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(Boolean)
             }, {
                 headers: { Authorization: token }
@@ -85,13 +85,12 @@ const Discussions = () => {
 
             toast.success('Discussion created!')
             setShowCreateModal(false)
-            setNewDiscussion({ title: '', content: '', category: 'General Discussion', tags: '' })
+            setNewDiscussion({ content: '', category: 'General Discussion', tags: '' })
             navigate(`/app/discussions/${data.discussion._id}`)
         } catch (error) {
             toast.error('Failed to create discussion')
         }
     }
-
 
     const handleSave = async (discussionId, e) => {
         e.stopPropagation()
@@ -109,12 +108,6 @@ const Discussions = () => {
             toast.error('Failed to save discussion')
         }
     }
-
-    const clearFilters = () => {
-        setFilters({ search: '', category: '' })
-    }
-
-    const activeFiltersCount = Object.values(filters).filter(v => v).length
 
     return (
         <div className='min-h-screen bg-slate-50 dark:bg-slate-950'>
@@ -139,61 +132,18 @@ const Discussions = () => {
                     </button>
                 </div>
 
-                {/* Search & Filters */}
+                {/* Search Bar */}
                 <div className='bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 mb-6'>
-                    <div className='flex gap-4'>
-                        <div className='flex-1 relative'>
-                            <Search className='absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400' />
-                            <input
-                                type="text"
-                                value={filters.search}
-                                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                                placeholder='Search discussions...'
-                                className='w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500'
-                            />
-                        </div>
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className='px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 relative'
-                        >
-                            <Filter className='size-5' />
-                            Filters
-                            {activeFiltersCount > 0 && (
-                                <span className='absolute -top-2 -right-2 size-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center'>
-                                    {activeFiltersCount}
-                                </span>
-                            )}
-                        </button>
+                    <div className='relative'>
+                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400' />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder='Search discussions...'
+                            className='w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500'
+                        />
                     </div>
-
-                    {showFilters && (
-                        <div className='mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 flex gap-4'>
-                            <div className='flex-1'>
-                                <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>Category</label>
-                                <select
-                                    value={filters.category}
-                                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                                    className='w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100'
-                                >
-                                    <option value=''>All Categories</option>
-                                    {categories.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            {activeFiltersCount > 0 && (
-                                <div className='flex items-end'>
-                                    <button
-                                        onClick={clearFilters}
-                                        className='px-4 py-2 bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg font-medium flex items-center gap-2'
-                                    >
-                                        <X className='size-4' />
-                                        Clear
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 {/* Discussions List */}
@@ -276,13 +226,6 @@ const Discussions = () => {
 
                                         {/* Stats */}
                                         <div className='flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400'>
-                                            <button
-                                                onClick={(e) => handleLike(discussion._id, e)}
-                                                className='flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors'
-                                            >
-                                                <ThumbsUp className={`size-4 ${discussion.likes?.includes(user?._id) ? 'fill-current text-indigo-600' : ''}`} />
-                                                {discussion.likes?.length || 0}
-                                            </button>
                                             <span className='flex items-center gap-1'>
                                                 <MessageCircle className='size-4' />
                                                 {discussion.comments?.length || 0} comments
@@ -327,20 +270,6 @@ const Discussions = () => {
                             <div className='space-y-4'>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                                        Title *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={newDiscussion.title}
-                                        onChange={(e) => setNewDiscussion({ ...newDiscussion, title: e.target.value })}
-                                        placeholder='What do you want to discuss?'
-                                        className='w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100'
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
                                         Category
                                     </label>
                                     <select
@@ -356,13 +285,15 @@ const Discussions = () => {
 
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                                        Content *
+                                        What would you like to discuss? *
                                     </label>
                                     <textarea
                                         value={newDiscussion.content}
                                         onChange={(e) => setNewDiscussion({ ...newDiscussion, content: e.target.value })}
-                                        placeholder='Share your thoughts, questions, or insights...'
-                                        rows={8}
+                                        placeholder='Share your thoughts, questions, or insights...
+
+The first line will be used as the title.'
+                                        rows={10}
                                         className='w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 resize-none'
                                         required
                                     />

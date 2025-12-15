@@ -1,14 +1,11 @@
 import React from 'react'
 import {useState,useEffect} from 'react'
 import {PlusIcon,UploadCloudIcon,FilePenLineIcon,TrashIcon,PencilIcon, XIcon, UploadCloud, LoaderCircleIcon, FileSearch, Briefcase, MessageSquare } from 'lucide-react';
-import { dummyResumeData } from './../assets/assets';
 import { useNavigate } from 'react-router-dom';
-import { createRoot } from 'react-dom/client';
 import { useSelector } from 'react-redux';
 import api from '../configs/api.js';
 import toast from 'react-hot-toast';
 import pdfToText from 'react-pdftotext'
-
 
 const Dashboard = () => {
   const {user,token} = useSelector(state=> state.auth)
@@ -112,7 +109,7 @@ const Dashboard = () => {
           Welcome, {user?.name}
         </p>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - WITHOUT "My Resumes" */}
         <div className='grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8'>
           <button 
             onClick={()=>setshowCreateResume(true)} 
@@ -147,7 +144,7 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Additional Quick Link */}
+        {/* Community Discussions Link */}
         <button 
           onClick={()=>navigate('/app/discussions')} 
           className='w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl p-6 mb-8 flex items-center justify-between shadow-lg hover:shadow-xl transition-all duration-300'

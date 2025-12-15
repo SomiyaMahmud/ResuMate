@@ -1,4 +1,5 @@
 import Discussion from "../models/Discussion.js"
+import Notification from "../models/Notification.js"
 
 // ==================== DISCUSSION CONTROLLERS ====================
 
@@ -173,7 +174,40 @@ export const deleteDiscussion = async (req, res) => {
     }
 }
 
+// Helper function to create notification
+const createNotification = async (recipientId, senderId, type, discussionId, commentId, message) => {
+    try {
+        // Don't notify if sender and recipient are the same
+        if (recipientId.toString() === senderId.toString()) {
+            return null
+        }
+
+        const notification = await Notification.create({
+            recipient: recipientId,
+            sender: senderId,
+            type,
+            discussionId,
+            commentId,
+            message
+        })
+
+        return notification
+    } catch (error) {
+        console.error('Error creating notification:', error)
+        return null
+    }
+}
+
+
+
+
+
+
+
+
 // ==================== COMMENT CONTROLLERS ====================
+
+
 
 // Add comment
 // POST: /api/discussions/:discussionId/comment
@@ -201,14 +235,28 @@ export const addComment = async (req, res) => {
         await discussion.save()
         await discussion.populate('comments.user', 'name email')
 
+        // CREATE NOTIFICATION
+        console.log('Creating notification for discussion author:', discussion.postedBy)
+        await createNotification(
+            discussion.postedBy,
+            userId,
+            'comment',
+            discussionId,
+            null,
+            'commented on your discussion'
+        )
+
         return res.status(200).json({
             message: "Comment added successfully",
             comments: discussion.comments
         })
     } catch (error) {
+        console.error('Add comment error:', error)
         return res.status(400).json({ message: error.message })
     }
 }
+
+
 
 // Edit comment
 // PUT: /api/discussions/:discussionId/comment/:commentId
@@ -393,14 +441,27 @@ export const addReply = async (req, res) => {
         await discussion.populate('comments.user', 'name email')
         await discussion.populate('comments.replies.user', 'name email')
 
+        // CREATE NOTIFICATION
+        console.log('Creating notification for comment author:', comment.user)
+        await createNotification(
+            comment.user,
+            userId,
+            'reply',
+            discussionId,
+            commentId,
+            'replied to your comment'
+        )
+
         return res.status(200).json({
             message: "Reply added successfully",
             comments: discussion.comments
         })
     } catch (error) {
+        console.error('Add reply error:', error)
         return res.status(400).json({ message: error.message })
     }
 }
+
 
 // Edit reply
 // PUT: /api/discussions/:discussionId/comment/:commentId/reply/:replyId
@@ -495,3 +556,24 @@ export const deleteReply = async (req, res) => {
         return res.status(400).json({ message: error.message })
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
