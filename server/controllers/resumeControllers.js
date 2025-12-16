@@ -3,8 +3,6 @@ import Resume from "../models/Resume.js";
 import fs from 'fs';
 
 // controllers for creating new resumes
-//POST: /api/resumes/create
-
 export const createResume = async (req,res)=>{
     try {
         const userId = req.userId;
@@ -20,8 +18,6 @@ export const createResume = async (req,res)=>{
 }
 
 // controllers for deleting a  resumes
-//DELETE: /api/resumes/delete
-
 export const deleteResume = async (req,res)=>{
     try {
         const userId = req.userId;
@@ -39,7 +35,7 @@ export const deleteResume = async (req,res)=>{
 
 
 // controllers for getiing resume by id
-//GET: /api/resumes/get
+
 export const getResumeById = async (req,res)=>{
     try {
         const userId = req.userId;
@@ -65,7 +61,6 @@ export const getResumeById = async (req,res)=>{
 
 
 // controllers for getiing resume by id in public
-//GET: /api/resumes/public
 
 export const getPublicResumeById = async (req,res)=>{
     try {
@@ -87,8 +82,6 @@ export const getPublicResumeById = async (req,res)=>{
 
 
 // controllers for updating a resume 
-//PUT: /api/resumes/update
-
 export const updateResume = async (req,res)=>{
     try {
         const userId = req.userId
@@ -125,5 +118,35 @@ export const updateResume = async (req,res)=>{
 
     } catch (error) {
         return res.status(400).json({message: error.message})
+    }
+}
+
+
+// Add this new function at the end
+export const updateSectionOrder = async (req, res) => {
+    try {
+        const userId = req.userId
+        const { resumeId, sectionOrder } = req.body
+
+        if (!resumeId || !sectionOrder || !Array.isArray(sectionOrder)) {
+            return res.status(400).json({ message: "Invalid data" })
+        }
+
+        const resume = await Resume.findOneAndUpdate(
+            { userId, _id: resumeId },
+            { sectionOrder },
+            { new: true }
+        )
+
+        if (!resume) {
+            return res.status(404).json({ message: "Resume not found" })
+        }
+
+        return res.status(200).json({ 
+            message: "Section order updated", 
+            sectionOrder: resume.sectionOrder 
+        })
+    } catch (error) {
+        return res.status(400).json({ message: error.message })
     }
 }
