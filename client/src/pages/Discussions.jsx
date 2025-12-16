@@ -18,6 +18,7 @@ const Discussions = () => {
 
     // Create form
     const [newDiscussion, setNewDiscussion] = useState({
+        title: '',
         content: '',
         category: 'General Discussion',
         tags: ''
@@ -64,20 +65,16 @@ const Discussions = () => {
             return
         }
 
-        if (!newDiscussion.content.trim()) {
-            toast.error('Content is required')
+        if (!newDiscussion.title.trim() || !newDiscussion.content.trim()) {
+            toast.error('Title and content are required')
             return
         }
 
         try {
-            // Auto-generate title from first line of content
-            const firstLine = newDiscussion.content.split('\n')[0].trim()
-            const autoTitle = firstLine.substring(0, 100) + (firstLine.length > 100 ? '...' : '')
-
             const { data } = await api.post('/api/discussions/create', {
-                title: autoTitle,
+                title: newDiscussion.title,
                 content: newDiscussion.content,
-                category: newDiscussion.category,
+                category: 'General Discussion', // Default category
                 tags: newDiscussion.tags.split(',').map(t => t.trim()).filter(Boolean)
             }, {
                 headers: { Authorization: token }
@@ -85,7 +82,7 @@ const Discussions = () => {
 
             toast.success('Discussion created!')
             setShowCreateModal(false)
-            setNewDiscussion({ content: '', category: 'General Discussion', tags: '' })
+            setNewDiscussion({ title: '', content: '', tags: '' })
             navigate(`/app/discussions/${data.discussion._id}`)
         } catch (error) {
             toast.error('Failed to create discussion')
@@ -228,7 +225,7 @@ const Discussions = () => {
                                         <div className='flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400'>
                                             <span className='flex items-center gap-1'>
                                                 <MessageCircle className='size-4' />
-                                                {discussion.comments?.length || 0} comments
+                                                {discussion.totalComments || discussion.comments?.length || 0} comments
                                             </span>
                                             <span className='flex items-center gap-1'>
                                                 <Eye className='size-4' />
@@ -270,30 +267,27 @@ const Discussions = () => {
                             <div className='space-y-4'>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                                        Category
+                                        Title *
                                     </label>
-                                    <select
-                                        value={newDiscussion.category}
-                                        onChange={(e) => setNewDiscussion({ ...newDiscussion, category: e.target.value })}
+                                    <input
+                                        type="text"
+                                        value={newDiscussion.title}
+                                        onChange={(e) => setNewDiscussion({ ...newDiscussion, title: e.target.value })}
+                                        placeholder='What do you want to discuss?'
                                         className='w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100'
-                                    >
-                                        {categories.map(cat => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
+                                        required
+                                    />
                                 </div>
 
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                                        What would you like to discuss? *
+                                        Content *
                                     </label>
                                     <textarea
                                         value={newDiscussion.content}
                                         onChange={(e) => setNewDiscussion({ ...newDiscussion, content: e.target.value })}
-                                        placeholder='Share your thoughts, questions, or insights...
-
-The first line will be used as the title.'
-                                        rows={10}
+                                        placeholder='Share your thoughts, questions, or insights...'
+                                        rows={8}
                                         className='w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 resize-none'
                                         required
                                     />

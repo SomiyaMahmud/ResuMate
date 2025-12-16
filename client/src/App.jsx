@@ -14,6 +14,8 @@ import DiscussionDetails from './pages/DiscussionDetails'
 import SavedJobs from './pages/SavedJobs'
 import SavedDiscussions from './pages/SavedDiscussions'
 import CreateJob from './pages/CreateJob'
+import MyResumes from './pages/MyResumes'
+
 import { useDispatch, useSelector } from 'react-redux'
 import api from './configs/api.js'
 import { login, setLoading } from './app/features/authSlice'
@@ -71,18 +73,19 @@ const App = () => {
 
         <Route path='app' element={<Layout />}>
           <Route index element={<Dashboard />} />
+          <Route path='my-resumes' element={<MyResumes />} />
           <Route path='builder/:resumeId' element={<ResumeBuilder />} />
           <Route path='ats-analyzer' element={<ATS />} />
           
           {/* Jobs */}
           <Route path='jobs' element={<Jobs />} />
-          <Route path='jobs/create' element={<CreateJob />} />  {/* NEW */}
-          <Route path='jobs/saved' element={<SavedJobs />} />   {/* NEW */}
+          <Route path='jobs/create' element={<CreateJob />} />
+          <Route path='jobs/saved' element={<SavedJobs />} /> 
           <Route path='jobs/:jobId' element={<JobDetails />} />
           
           {/* Discussions */}
           <Route path='discussions' element={<Discussions />} />
-          <Route path='discussions/saved' element={<SavedDiscussions />} />  {/* NEW */}
+          <Route path='discussions/saved' element={<SavedDiscussions />} />
           <Route path='discussions/:discussionId' element={<DiscussionDetails />} />
         </Route>
 

@@ -44,6 +44,7 @@ const CommentSchema = new mongoose.Schema({
     replies: [ReplySchema]
 }, { timestamps: true })
 
+
 const DiscussionSchema = new mongoose.Schema({
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -113,7 +114,17 @@ const DiscussionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     }
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
+
+
+// Virtual field to count total comments including replies
+DiscussionSchema.virtual('totalComments').get(function() {
+    let total = this.comments.length
+    this.comments.forEach(comment => {
+        total += comment.replies?.length || 0
+    })
+    return total
+})
 
 DiscussionSchema.index({ title: 'text', content: 'text' })
 DiscussionSchema.index({ category: 1, createdAt: -1 })

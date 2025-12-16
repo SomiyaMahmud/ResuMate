@@ -149,17 +149,16 @@ const Navbar = () => {
             <img src="/logo.svg" alt="" className='h-11 w-auto'/>
           </Link>
           
-          <Link
-            to='/app'
-            className={`p-2 rounded-lg transition-colors ${
-              location.pathname === '/app'
-                ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-            title="Dashboard"
-          >
-            <Home className='size-6' />
-          </Link>
+          {/* Only show dashboard icon if NOT on dashboard page */}
+          {location.pathname !== '/app' && (
+            <Link
+              to='/app'
+              className='p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
+              title="Dashboard"
+            >
+              <Home className='size-6' />
+            </Link>
+          )}
         </div>
 
         {/* Right Side Actions */}
@@ -285,7 +284,7 @@ const Navbar = () => {
                 {/* Menu Items */}
                 <div className='py-2'>
                   <Link
-                    to='/app'
+                    to='/app/my-resumes'
                     onClick={() => setShowDropdown(false)}
                     className='flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors'
                   >

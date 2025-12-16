@@ -319,7 +319,7 @@ const DiscussionDetails = () => {
                                 <div className='flex items-center gap-6 pt-6 border-t border-slate-200 dark:border-slate-700'>
                                     <span className='flex items-center gap-2 text-slate-600 dark:text-slate-400'>
                                         <MessageCircle className='size-5' />
-                                        {discussion.comments?.length || 0} comments
+                                        {discussion.totalComments || discussion.comments?.length || 0} comments
                                     </span>
                                     <span className='flex items-center gap-2 text-slate-600 dark:text-slate-400'>
                                         <Eye className='size-5' />

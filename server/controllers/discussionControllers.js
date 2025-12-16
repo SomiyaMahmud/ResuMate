@@ -1,10 +1,9 @@
 import Discussion from "../models/Discussion.js"
 import Notification from "../models/Notification.js"
 
-// ==================== DISCUSSION CONTROLLERS ====================
 
 // Create new discussion
-// POST: /api/discussions/create
+
 export const createDiscussion = async (req, res) => {
     try {
         const userId = req.userId
@@ -34,7 +33,7 @@ export const createDiscussion = async (req, res) => {
 }
 
 // Get all discussions with filters
-// GET: /api/discussions?category=Resume Help&search=interview
+
 export const getAllDiscussions = async (req, res) => {
     try {
         const {
@@ -83,29 +82,33 @@ export const getAllDiscussions = async (req, res) => {
 }
 
 // Get single discussion by ID
-// GET: /api/discussions/:discussionId
+
 export const getDiscussionById = async (req, res) => {
     try {
         const { discussionId } = req.params
-        const userId = req.userId // From auth middleware
+        const userId = req.userId // From auth middleware (can be undefined if not logged in)
 
         const discussion = await Discussion.findById(discussionId)
             .populate('postedBy', 'name email')
             .populate('comments.user', 'name email')
+            .populate('comments.replies.user', 'name email')
 
         if (!discussion) {
             return res.status(404).json({ message: "Discussion not found" })
         }
 
-        // Increment views only if user hasn't viewed before
-        if (userId && !discussion.viewedBy.includes(userId)) {
-            discussion.views += 1
-            discussion.viewedBy.push(userId)
-            await discussion.save()
-        } else if (!userId) {
-            // For non-logged-in users, still increment (optional)
-            discussion.views += 1
-            await discussion.save()
+        // Increment views only if user hasn't viewed before (tracked by viewedBy array)
+        if (userId) {
+            // Check if user has already viewed
+            const hasViewed = discussion.viewedBy.some(id => id.toString() === userId.toString())
+            
+            if (!hasViewed) {
+                discussion.views += 1
+                discussion.viewedBy.push(userId)
+                await discussion.save()
+            }
+        } else {
+            // For non-logged-in users, don't increment
         }
 
         return res.status(200).json({ discussion })
@@ -115,7 +118,7 @@ export const getDiscussionById = async (req, res) => {
 }
 
 // Update discussion
-// PUT: /api/discussions/update/:discussionId
+
 export const updateDiscussion = async (req, res) => {
     try {
         const { discussionId } = req.params
@@ -153,7 +156,7 @@ export const updateDiscussion = async (req, res) => {
 }
 
 // Delete discussion
-// DELETE: /api/discussions/delete/:discussionId
+
 export const deleteDiscussion = async (req, res) => {
     try {
         const { discussionId } = req.params
@@ -199,18 +202,12 @@ const createNotification = async (recipientId, senderId, type, discussionId, com
 }
 
 
-
-
-
-
-
-
 // ==================== COMMENT CONTROLLERS ====================
 
 
 
 // Add comment
-// POST: /api/discussions/:discussionId/comment
+
 export const addComment = async (req, res) => {
     try {
         const { discussionId } = req.params
@@ -259,7 +256,7 @@ export const addComment = async (req, res) => {
 
 
 // Edit comment
-// PUT: /api/discussions/:discussionId/comment/:commentId
+
 export const editComment = async (req, res) => {
     try {
         const { discussionId, commentId } = req.params
@@ -304,7 +301,7 @@ export const editComment = async (req, res) => {
 }
 
 // Delete comment
-// DELETE: /api/discussions/:discussionId/comment/:commentId
+
 export const deleteComment = async (req, res) => {
     try {
         const { discussionId, commentId } = req.params
@@ -342,7 +339,7 @@ export const deleteComment = async (req, res) => {
 
 
 // Save/Unsave discussion
-// POST: /api/discussions/:discussionId/save
+
 export const toggleSaveDiscussion = async (req, res) => {
     try {
         const { discussionId } = req.params
@@ -376,7 +373,7 @@ export const toggleSaveDiscussion = async (req, res) => {
 }
 
 // Get user's saved discussions
-// GET: /api/discussions/saved
+
 export const getSavedDiscussions = async (req, res) => {
     try {
         const userId = req.userId
@@ -392,7 +389,7 @@ export const getSavedDiscussions = async (req, res) => {
 }
 
 // Get user's discussions
-// GET: /api/discussions/my-posts
+
 export const getMyDiscussions = async (req, res) => {
     try {
         const userId = req.userId
@@ -409,7 +406,7 @@ export const getMyDiscussions = async (req, res) => {
 
 
 // Add reply to comment
-// POST: /api/discussions/:discussionId/comment/:commentId/reply
+
 export const addReply = async (req, res) => {
     try {
         const { discussionId, commentId } = req.params
@@ -464,7 +461,7 @@ export const addReply = async (req, res) => {
 
 
 // Edit reply
-// PUT: /api/discussions/:discussionId/comment/:commentId/reply/:replyId
+
 export const editReply = async (req, res) => {
     try {
         const { discussionId, commentId, replyId } = req.params
@@ -516,7 +513,7 @@ export const editReply = async (req, res) => {
 }
 
 // Delete reply
-// DELETE: /api/discussions/:discussionId/comment/:commentId/reply/:replyId
+
 export const deleteReply = async (req, res) => {
     try {
         const { discussionId, commentId, replyId } = req.params
@@ -556,24 +553,3 @@ export const deleteReply = async (req, res) => {
         return res.status(400).json({ message: error.message })
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
